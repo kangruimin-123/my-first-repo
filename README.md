@@ -1,3 +1,12 @@
+---
+title: Stock Trading System 3.0
+emoji: 📈
+colorFrom: red
+colorTo: green
+sdk: docker
+app_port: 7860
+---
+
 # 主线龙头交易系统 3.0
 
 个人 A 股主线龙头交易辅助系统，包含后端策略引擎、FastAPI 接口、React 前端、交易日三段式调度和 Docker 发布配置。
@@ -33,13 +42,19 @@ http://127.0.0.1:8000/
 
 ## 发布
 
-项目已准备 Docker 和 Render 配置：
+项目已准备 Docker、Hugging Face Spaces 和 Render 配置：
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kangruimin-123/my-first-repo)
 
 - `Dockerfile`
 - `render.yaml`
 - `DEPLOY.md`
+
+Hugging Face Spaces 发布时选择 Docker SDK，设置 Secrets：
+
+- `TS_TOKEN`
+- `APP_USERNAME`
+- `APP_PASSWORD`
 
 GitHub 用作代码仓库；Render/Railway/VPS 负责真正运行服务。
 

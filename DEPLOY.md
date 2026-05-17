@@ -20,7 +20,29 @@ http://127.0.0.1:8000/
 
 ```bash
 docker build -t stock-trading-system-3 .
-docker run -p 8000:8000 -e TS_TOKEN=你的TushareToken stock-trading-system-3
+docker run -p 8000:7860 -e TS_TOKEN=你的TushareToken stock-trading-system-3
+```
+
+## Hugging Face Spaces 发布
+
+1. 打开 <https://huggingface.co/new-space>。
+2. 填写 Space 名称。
+3. 选择 `Docker` 作为 SDK。
+4. Visibility 可先选 Private；如果免费资源不支持 Private，则先用 Public，并务必设置下面的登录保护。
+5. 创建后进入 Space 的 `Settings -> Repository secrets`，添加：
+
+```text
+TS_TOKEN=你的 Tushare Token
+APP_USERNAME=你的网页登录用户名
+APP_PASSWORD=你的网页登录密码
+```
+
+6. 在 Space 的 `Files` 页面选择从 GitHub 导入，或把本仓库内容同步到 Space 仓库。
+7. Space 会读取 README 顶部配置：
+
+```yaml
+sdk: docker
+app_port: 7860
 ```
 
 ## Render 发布
@@ -36,6 +58,7 @@ docker run -p 8000:8000 -e TS_TOKEN=你的TushareToken stock-trading-system-3
 
 - 镜像不会包含本地 `trading_system.db`，避免把持仓、成本价等私有数据推到 GitHub 或云端镜像。
 - 首次发布后云端会创建空 SQLite 库；需要重新导入持仓或接入持久化数据库。
+- Hugging Face Spaces 免费实例可能休眠，首次打开会慢一些。
 - 如果要每天自动更新并长期保留结果，需要给线上服务加持久化磁盘，或者把 SQLite 换成云数据库。
 - 线上更新数据可以通过进入服务执行：
 
