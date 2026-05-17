@@ -18,9 +18,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sqlalchemy import func
+from sqlalchemy import Date as SqlDate
+from sqlalchemy import DateTime as SqlDateTime
+from sqlalchemy import Time as SqlTime
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from backend.config import load_config
 from backend.db import (
+    ALL_MODELS,
     DailyKline,
     EvaluationResult,
     LeaderRadarRecord,
@@ -36,6 +41,7 @@ from backend.db import (
     get_system_meta,
     get_session,
     init_db,
+    table_counts,
 )
 from backend.engine.daily_runner import DailyRunner
 
@@ -71,6 +77,7 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
 
     @app.on_event("startup")
     def bootstrap_positions() -> None:
+        _bootstrap_snapshot_from_file()
         _bootstrap_positions_from_env()
         _start_daily_bootstrap_if_enabled(app_config)
 
@@ -283,6 +290,57 @@ def _bootstrap_positions_from_env() -> None:
     if imported:
         logger.info("Bootstrapped %s positions from INITIAL_POSITIONS_JSON", imported)
         print(f"BOOTSTRAP_POSITIONS imported={imported}", flush=True)
+
+
+def _bootstrap_snapshot_from_file() -> None:
+    path = Path(os.getenv("BOOTSTRAP_SNAPSHOT_PATH", "sample_data/cloud/bootstrap_snapshot.json"))
+    if not path.exists():
+        return
+    with get_session() as session:
+        counts = table_counts(session)
+    if counts.get("daily_kline", 0) > 0 or counts.get("evaluation_results", 0) > 0:
+        return
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Bootstrap snapshot could not be read: %s", exc)
+        return
+    tables = payload.get("tables", {})
+    if not isinstance(tables, dict):
+        logger.warning("Bootstrap snapshot has no tables object")
+        return
+    model_by_table = {model.__tablename__: model for model in ALL_MODELS}
+    imported: dict[str, int] = {}
+    with get_session() as session:
+        for table_name, rows in tables.items():
+            model = model_by_table.get(str(table_name))
+            if model is None or not isinstance(rows, list) or not rows:
+                continue
+            normalized_rows = [_normalize_snapshot_row(model, row) for row in rows if isinstance(row, dict)]
+            if not normalized_rows:
+                continue
+            statement = sqlite_insert(model).values(normalized_rows)
+            session.execute(statement.on_conflict_do_nothing())
+            imported[model.__tablename__] = len(normalized_rows)
+    if imported:
+        summary = ",".join(f"{table}={count}" for table, count in sorted(imported.items()))
+        logger.info("Bootstrapped cloud snapshot: %s", summary)
+        print(f"BOOTSTRAP_SNAPSHOT {summary}", flush=True)
+
+
+def _normalize_snapshot_row(model: type[Any], row: dict[str, Any]) -> dict[str, Any]:
+    normalized = {key: value for key, value in row.items() if key != "id"}
+    for column in model.__table__.columns:
+        if column.name not in normalized or normalized[column.name] in (None, ""):
+            continue
+        value = normalized[column.name]
+        if isinstance(column.type, SqlDateTime) and isinstance(value, str):
+            normalized[column.name] = datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+        elif isinstance(column.type, SqlDate) and not isinstance(column.type, SqlDateTime) and isinstance(value, str):
+            normalized[column.name] = date.fromisoformat(value[:10])
+        elif isinstance(column.type, SqlTime) and isinstance(value, str):
+            normalized[column.name] = datetime.strptime(value, "%H:%M:%S").time()
+    return normalized
 
 
 def _start_daily_bootstrap_if_enabled(config: dict[str, Any]) -> None:
