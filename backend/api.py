@@ -179,10 +179,19 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
 def _install_basic_auth(app: FastAPI) -> None:
     username = os.getenv("APP_USERNAME", "").strip()
     password = os.getenv("APP_PASSWORD", "")
+    print(
+        "BASIC_AUTH_CONFIG "
+        f"username_present={bool(username)} "
+        f"password_present={bool(password)} "
+        f"username_length={len(username)} "
+        f"password_length={len(password)}",
+        flush=True,
+    )
     if not username or not password:
         logger.warning("Basic auth disabled: APP_USERNAME or APP_PASSWORD is not configured")
         return
     logger.info("Basic auth enabled")
+    print("BASIC_AUTH_ENABLED true", flush=True)
 
     @app.middleware("http")
     async def basic_auth(request: Request, call_next: Any) -> Response:
