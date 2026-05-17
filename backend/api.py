@@ -47,6 +47,15 @@ from backend.engine.daily_runner import DailyRunner
 
 
 logger = logging.getLogger(__name__)
+_daily_update_lock = threading.Lock()
+_daily_update_state: dict[str, Any] = {
+    "running": False,
+    "started_at": "",
+    "finished_at": "",
+    "message": "尚未手动更新",
+    "detail": "",
+    "success": None,
+}
 
 
 class PositionCreate(BaseModel):
@@ -96,7 +105,16 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
                 "last_detail": meta.get("trade_day.last_detail", ""),
                 "last_run_at": meta.get("trade_day.last_run_at", ""),
             },
+            "manual_update": _daily_update_payload(),
         }
+
+    @app.get("/api/admin/update-status")
+    def update_status() -> dict[str, Any]:
+        return _daily_update_payload()
+
+    @app.post("/api/admin/run-daily")
+    def run_daily_update() -> dict[str, Any]:
+        return _start_manual_daily_update(app_config)
 
     @app.get("/api/evaluation")
     def evaluation() -> dict[str, Any]:
@@ -366,6 +384,73 @@ def _start_daily_bootstrap_if_enabled(config: dict[str, Any]) -> None:
 
     thread = threading.Thread(target=run_daily, name="daily-bootstrap", daemon=True)
     thread.start()
+
+
+def _daily_update_payload() -> dict[str, Any]:
+    with _daily_update_lock:
+        return dict(_daily_update_state)
+
+
+def _start_manual_daily_update(config: dict[str, Any]) -> dict[str, Any]:
+    with _daily_update_lock:
+        if _daily_update_state["running"]:
+            payload = dict(_daily_update_state)
+            payload["started"] = False
+            return payload
+        now = datetime.now(UTC).isoformat()
+        _daily_update_state.update(
+            {
+                "running": True,
+                "started_at": now,
+                "finished_at": "",
+                "message": "手动更新已启动",
+                "detail": "正在同步行情、主线、策略评分、机会雷达和持仓建议",
+                "success": None,
+            }
+        )
+
+    def run_daily() -> None:
+        print("MANUAL_DAILY_UPDATE started", flush=True)
+        try:
+            result = DailyRunner(config).run()
+            finished_at = datetime.now(UTC).isoformat()
+            detail = (
+                f"focus={len(result.focus_pool)}; "
+                f"observation={len(result.observation_pool)}; "
+                f"radar={len(result.radar_results)}; "
+                f"risk={len(result.risk_warnings)}; "
+                f"skipped={result.sync_result.skipped}"
+            )
+            with _daily_update_lock:
+                _daily_update_state.update(
+                    {
+                        "running": False,
+                        "finished_at": finished_at,
+                        "message": "手动更新完成",
+                        "detail": detail,
+                        "success": True,
+                    }
+                )
+            print(f"MANUAL_DAILY_UPDATE finished {detail}", flush=True)
+        except Exception as exc:
+            logger.exception("Manual daily update failed")
+            with _daily_update_lock:
+                _daily_update_state.update(
+                    {
+                        "running": False,
+                        "finished_at": datetime.now(UTC).isoformat(),
+                        "message": "手动更新失败",
+                        "detail": str(exc),
+                        "success": False,
+                    }
+                )
+            print(f"MANUAL_DAILY_UPDATE failed: {exc}", flush=True)
+
+    thread = threading.Thread(target=run_daily, name="manual-daily-update", daemon=True)
+    thread.start()
+    payload = _daily_update_payload()
+    payload["started"] = True
+    return payload
 
 
 app = create_app()

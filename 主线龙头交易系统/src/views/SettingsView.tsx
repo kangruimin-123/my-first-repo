@@ -1,8 +1,45 @@
 import React from 'react';
 import { Database, RefreshCcw, Trash2, Clock, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { api, ManualUpdateStatus } from '../api/client';
 
 export default function SettingsView() {
+  const [updateStatus, setUpdateStatus] = React.useState<ManualUpdateStatus | null>(null);
+  const [isStartingUpdate, setIsStartingUpdate] = React.useState(false);
+  const [updateError, setUpdateError] = React.useState('');
+
+  const refreshUpdateStatus = React.useCallback(() => {
+    api.updateStatus()
+      .then((status) => {
+        setUpdateStatus(status);
+        setUpdateError('');
+      })
+      .catch((error) => setUpdateError(error instanceof Error ? error.message : '更新状态读取失败'));
+  }, []);
+
+  React.useEffect(() => {
+    refreshUpdateStatus();
+  }, [refreshUpdateStatus]);
+
+  React.useEffect(() => {
+    if (!updateStatus?.running) return;
+    const timer = window.setInterval(refreshUpdateStatus, 5000);
+    return () => window.clearInterval(timer);
+  }, [refreshUpdateStatus, updateStatus?.running]);
+
+  const runDailyUpdate = async () => {
+    setIsStartingUpdate(true);
+    setUpdateError('');
+    try {
+      const status = await api.runDailyUpdate();
+      setUpdateStatus(status);
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : '手动更新启动失败');
+    } finally {
+      setIsStartingUpdate(false);
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <section className="space-y-6">
@@ -30,7 +67,11 @@ export default function SettingsView() {
               title="手动同步数据" 
               desc="重新从 API 拉取最新市场行情和主线评分" 
               icon={RefreshCcw} 
-              btnText="Sync Now" 
+              btnText={updateStatus?.running ? '更新中...' : isStartingUpdate ? '启动中...' : '立即同步'}
+              onClick={runDailyUpdate}
+              disabled={Boolean(updateStatus?.running || isStartingUpdate)}
+              status={updateStatus}
+              error={updateError}
             />
            <ActionTile 
               title="清理过期数据" 
@@ -114,7 +155,7 @@ function SourceItem({ name, status, time, latency, entries, warning }: any) {
   );
 }
 
-function ActionTile({ title, desc, icon: Icon, btnText, danger }: any) {
+function ActionTile({ title, desc, icon: Icon, btnText, danger, onClick, disabled, status, error }: any) {
   return (
     <div className="glass-panel p-6 rounded-xl space-y-4">
        <div className="flex items-center gap-3">
@@ -124,12 +165,26 @@ function ActionTile({ title, desc, icon: Icon, btnText, danger }: any) {
           <h5 className="font-bold text-slate-200">{title}</h5>
        </div>
        <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
+       {status && !danger && (
+         <div className="rounded-lg border border-border-subtle bg-white/[0.03] px-3 py-2 text-[11px] leading-relaxed text-slate-400">
+           <div className={cn('font-bold', status.running ? 'text-accent-orange' : status.success === false ? 'text-accent-red' : 'text-accent-green')}>
+             {status.message}
+           </div>
+           {status.detail && <div className="mt-1 font-mono">{status.detail}</div>}
+           {status.finished_at && <div className="mt-1 font-mono text-slate-500">Last: {new Date(status.finished_at).toLocaleString()}</div>}
+         </div>
+       )}
+       {error && !danger && <div className="text-[11px] text-accent-red">{error}</div>}
        <button className={cn(
          "w-full py-2.5 rounded-lg text-xs font-bold transition-all",
+         disabled && "opacity-50 cursor-not-allowed",
          danger 
            ? "border border-accent-red/30 text-accent-red hover:bg-accent-red hover:text-white" 
            : "bg-accent-blue text-white hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-       )}>
+       )}
+       onClick={onClick}
+       disabled={disabled}
+       >
           {btnText}
        </button>
     </div>

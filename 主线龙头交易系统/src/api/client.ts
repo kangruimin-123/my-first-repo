@@ -29,6 +29,24 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function postEmpty<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, { method: 'POST' });
+  if (!response.ok) {
+    throw new Error(`API ${path} failed: ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+export interface ManualUpdateStatus {
+  running: boolean;
+  started_at: string;
+  finished_at: string;
+  message: string;
+  detail: string;
+  success: boolean | null;
+  started?: boolean;
+}
+
 export const api = {
   evaluation: () => request<EvaluationData>('/api/evaluation'),
   radar: () => request<RadarData>('/api/radar'),
@@ -36,6 +54,8 @@ export const api = {
   createPosition: (payload: NewPositionInput) => post<Position>('/api/positions', payload),
   watchlist: () => request<WatchlistItem[]>('/api/watchlist'),
   backtest: () => request<BacktestData>('/api/backtest'),
+  updateStatus: () => request<ManualUpdateStatus>('/api/admin/update-status'),
+  runDailyUpdate: () => postEmpty<ManualUpdateStatus>('/api/admin/run-daily'),
   status: () => request<{
     status: string;
     latest_trade_date: string;
@@ -46,6 +66,7 @@ export const api = {
       last_detail: string;
       last_run_at: string;
     };
+    manual_update?: ManualUpdateStatus;
   }>('/api/status'),
 };
 
