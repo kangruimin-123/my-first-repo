@@ -35,6 +35,7 @@ docker run -p 8000:7860 -e TS_TOKEN=你的TushareToken stock-trading-system-3
 TS_TOKEN=你的 Tushare Token
 APP_USERNAME=你的网页登录用户名
 APP_PASSWORD=你的网页登录密码
+RUN_DAILY_ON_STARTUP=true
 ```
 
 6. 在 Space 的 `Files` 页面选择从 GitHub 导入，或把本仓库内容同步到 Space 仓库。

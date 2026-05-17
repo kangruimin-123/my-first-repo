@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import secrets
+import threading
 from functools import lru_cache
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -36,6 +37,7 @@ from backend.db import (
     get_session,
     init_db,
 )
+from backend.engine.daily_runner import DailyRunner
 
 
 logger = logging.getLogger(__name__)
@@ -70,6 +72,7 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
     @app.on_event("startup")
     def bootstrap_positions() -> None:
         _bootstrap_positions_from_env()
+        _start_daily_bootstrap_if_enabled(app_config)
 
     @app.get("/api/status")
     def status() -> dict[str, Any]:
@@ -280,6 +283,31 @@ def _bootstrap_positions_from_env() -> None:
     if imported:
         logger.info("Bootstrapped %s positions from INITIAL_POSITIONS_JSON", imported)
         print(f"BOOTSTRAP_POSITIONS imported={imported}", flush=True)
+
+
+def _start_daily_bootstrap_if_enabled(config: dict[str, Any]) -> None:
+    if os.getenv("RUN_DAILY_ON_STARTUP", "").strip().lower() not in {"1", "true", "yes", "on"}:
+        return
+
+    def run_daily() -> None:
+        print("DAILY_BOOTSTRAP started", flush=True)
+        try:
+            result = DailyRunner(config).run()
+            print(
+                "DAILY_BOOTSTRAP finished "
+                f"focus={len(result.focus_pool)} "
+                f"observation={len(result.observation_pool)} "
+                f"radar={len(result.radar_results)} "
+                f"risk={len(result.risk_warnings)} "
+                f"skipped={result.sync_result.skipped}",
+                flush=True,
+            )
+        except Exception as exc:
+            logger.exception("Daily bootstrap failed")
+            print(f"DAILY_BOOTSTRAP failed: {exc}", flush=True)
+
+    thread = threading.Thread(target=run_daily, name="daily-bootstrap", daemon=True)
+    thread.start()
 
 
 app = create_app()
