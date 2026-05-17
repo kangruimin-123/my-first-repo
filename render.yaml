@@ -2,10 +2,15 @@ services:
   - type: web
     name: stock-trading-system-3
     env: docker
-    plan: starter
-    autoDeploy: false
+    plan: free
+    autoDeployTrigger: off
+    healthCheckPath: /api/status
     envVars:
       - key: TS_TOKEN
+        sync: false
+      - key: APP_USERNAME
+        sync: false
+      - key: APP_PASSWORD
         sync: false
       - key: PORT
         value: 8000

@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import csv
+import base64
 import json
+import os
+import secrets
 from functools import lru_cache
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -57,6 +61,7 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    _install_basic_auth(app)
 
     @app.get("/api/status")
     def status() -> dict[str, Any]:
@@ -165,6 +170,40 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
         app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
 
     return app
+
+
+def _install_basic_auth(app: FastAPI) -> None:
+    username = os.getenv("APP_USERNAME", "").strip()
+    password = os.getenv("APP_PASSWORD", "")
+    if not username or not password:
+        return
+
+    @app.middleware("http")
+    async def basic_auth(request: Request, call_next: Any) -> Response:
+        if request.method == "OPTIONS":
+            return await call_next(request)
+        auth_header = request.headers.get("authorization", "")
+        if _valid_basic_auth(auth_header, username, password):
+            return await call_next(request)
+        return Response(
+            content="Authentication required",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            headers={"WWW-Authenticate": 'Basic realm="Stock Trading System"'},
+        )
+
+
+def _valid_basic_auth(auth_header: str, username: str, password: str) -> bool:
+    scheme, _, encoded = auth_header.partition(" ")
+    if scheme.lower() != "basic" or not encoded:
+        return False
+    try:
+        decoded = base64.b64decode(encoded).decode("utf-8")
+    except Exception:
+        return False
+    provided_username, separator, provided_password = decoded.partition(":")
+    if not separator:
+        return False
+    return secrets.compare_digest(provided_username, username) and secrets.compare_digest(provided_password, password)
 
 
 app = create_app()
