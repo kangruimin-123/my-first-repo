@@ -58,7 +58,6 @@ def _frontend_dist_path() -> Path:
 def create_app(config: dict[str, Any] | None = None) -> FastAPI:
     app_config = config or load_config()
     init_db(db_path=str(app_config["system"]["db_path"]))
-    _bootstrap_positions_from_env()
     app = FastAPI(title="主线龙头交易系统 API", version=str(app_config["system"].get("version", "0.1.0")))
     app.add_middleware(
         CORSMiddleware,
@@ -67,6 +66,10 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     _install_basic_auth(app)
+
+    @app.on_event("startup")
+    def bootstrap_positions() -> None:
+        _bootstrap_positions_from_env()
 
     @app.get("/api/status")
     def status() -> dict[str, Any]:

@@ -60,9 +60,8 @@ def test_initial_positions_json_bootstraps_positions(monkeypatch, mock_config, t
           }
         ]""",
     )
-    client = TestClient(create_app(_api_config(mock_config, tmp_path)))
-
-    response = client.get("/api/positions")
+    with TestClient(create_app(_api_config(mock_config, tmp_path))) as client:
+        response = client.get("/api/positions")
 
     assert response.status_code == 200
     payload = response.json()
