@@ -186,9 +186,7 @@ def _install_basic_auth(app: FastAPI) -> None:
     print(
         "BASIC_AUTH_CONFIG "
         f"username_present={bool(username)} "
-        f"password_present={bool(password)} "
-        f"username_length={len(username)} "
-        f"password_length={len(password)}",
+        f"password_present={bool(password)}",
         flush=True,
     )
     if not username or not password:
@@ -281,6 +279,7 @@ def _bootstrap_positions_from_env() -> None:
             imported += 1
     if imported:
         logger.info("Bootstrapped %s positions from INITIAL_POSITIONS_JSON", imported)
+        print(f"BOOTSTRAP_POSITIONS imported={imported}", flush=True)
 
 
 app = create_app()
