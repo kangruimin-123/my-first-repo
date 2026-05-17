@@ -1,0 +1,251 @@
+system:
+  name: "主线龙头交易系统"
+  version: "4.2.0"
+  timezone: "Asia/Shanghai"
+  log_level: "INFO"
+  db_path: "trading_system.db"
+  backup_dir: "backups"
+  data_retention_days: 180
+
+data_source:
+  daily:
+    chain: ["tushare", "akshare", "cache"]
+  auction:
+    chain: ["efinance", "tushare", "mock"]
+  intraday:
+    chain: ["efinance", "tushare", "mock"]
+  level2:
+    chain: ["mock"]
+  tushare:
+    token: ""
+    request_interval: 0.3
+    retry_times: 3
+    history_days: 120
+  cache:
+    expire_hours: 12
+    sector_expire_days: 7
+
+stock_pool:
+  exclude_st: true
+  exclude_bse: true
+  min_list_days: 60
+  min_avg_amount_5d: 50000000
+  exclude_suspended: true
+  watchlist_path: "sample_data/tushare_watchlist.csv"
+  max_observation_pool: 50
+  max_focus_pool: 10
+
+mainline:
+  top_n: 5
+  score_weights:
+    sector_pct_chg: 0.20
+    sector_amount: 0.15
+    limit_up_count: 0.20
+    lianban_count: 0.15
+    leader_strength: 0.15
+    duration: 0.10
+    money_flow: 0.05
+  status_thresholds:
+    rising_min_score: 60
+    fading_max_score: 30
+    rotation_volatility: 0.5
+  switch_threshold: 0.3
+
+role_detect:
+  leader:
+    min_amount_rank_pct: 0.2
+    min_pct_chg_rank_pct: 0.2
+  core_mid:
+    min_market_cap: 100
+    require_ma20_up: true
+    require_ma60_up: true
+  elastic:
+    max_market_cap: 100
+    min_turnover: 5.0
+
+strategies:
+  leader_pullback:
+    enabled: true
+    allowed_stages: ["stage_1_start", "stage_2_rising"]
+    ma_support: 20
+    pullback_max_pct: 5.0
+    require_volume_shrink: true
+    min_sector_score: 50
+    position_pct: [0.10, 0.20]
+  leader_breakout:
+    enabled: true
+    allowed_stages: ["stage_1_start", "stage_2_rising"]
+    breakout_window: 20
+    volume_ratio_min: 1.5
+    pct_change_min: 1.5
+    close_position_min: 0.7
+    require_sector_sync: true
+    position_pct: [0.10, 0.15]
+  leader_first_divergence:
+    enabled: true
+    allowed_stages: ["stage_2_rising"]
+    max_drop_from_high: 10.0
+    require_mainline_active: true
+    position_pct: [0.10, 0.15]
+  leader_trend_continue:
+    enabled: true
+    allowed_stages: ["stage_2_rising"]
+    require_ma20_hold: true
+  leader_reseal:
+    enabled: true
+    require_realtime: true
+  core_mid_trend_pullback:
+    enabled: true
+    allowed_stages: ["stage_1_start", "stage_2_rising"]
+    ma_support: 20
+    require_ma60_up: true
+    position_pct: [0.20, 0.30]
+  elastic_breakout:
+    enabled: true
+    allowed_stages: ["stage_1_start", "stage_2_rising"]
+    require_mainline: true
+    max_position_pct: 0.10
+  panic_reversal:
+    enabled: true
+    allowed_stages: ["stage_0_accumulation", "stage_1_start"]
+    max_position_pct: 0.10
+    require_leader_intact: true
+  auction_relative_strength:
+    enabled: true
+    allowed_stages: ["stage_1_start", "stage_2_rising", "stage_3_distribution"]
+    require_realtime_data: true
+    skip_if_data_unavailable: true
+    compare_with_sector: true
+    compare_with_lianban_group: true
+  lianban_leader_template:
+    enabled: true
+    allowed_stages: ["stage_1_start", "stage_2_rising"]
+    require_mainline: true
+    min_lianban_count: 2
+    require_auction_strength: true
+    skip_if_data_unavailable: true
+    deny_back_row: true
+    deny_overheated_high_open: true
+    max_position_pct: 0.10
+  mainline_switch:
+    enabled: true
+    score_diff_threshold: 0.3
+  trend_hold:
+    enabled: true
+
+risk:
+  deny_check:
+    non_mainline_deny: true
+    back_row_deny: true
+    overheated_deny: true
+    no_stop_loss_deny: true
+    min_risk_reward_ratio: 2.0
+  position_control:
+    leader_pullback: [0.10, 0.20]
+    lianban_leader: [0.05, 0.15]
+    core_mid_trend: [0.20, 0.30]
+    elastic: [0.05, 0.10]
+    panic_reversal: [0.00, 0.10]
+    max_total_position: 0.80
+    weak_market_max: 0.20
+  stop_loss:
+    default_pct: 5.0
+    use_ma20: true
+    use_prev_low: true
+  sell_rules:
+    strong_stock_protection: true
+    clear_signal_no_downgrade: true
+
+grading:
+  a_grade:
+    require_top5_mainline: true
+    require_deny_pass: true
+    require_full_data: true
+    min_confidence: 0.6
+    require_stop_loss: true
+  b_grade:
+    allow_top10_mainline: true
+    allow_degraded_data: true
+    min_confidence: 0.4
+
+llm:
+  enabled: false
+  provider: "openrouter"
+  model: "anthropic/claude-3-haiku"
+  api_key: ""
+  timeout: 10
+  fallback_on_error: true
+
+output:
+  terminal: true
+  csv: true
+  html: true
+
+trade_day:
+  opening:
+    time: "09:25"
+    phase: "opening"
+    description: "集合竞价与开盘指导"
+  intraday:
+    start: "10:00"
+    end: "14:50"
+    interval_seconds: 300
+    phase: "intraday"
+    description: "自选池与持仓盘中监控"
+  review:
+    time: "15:10"
+    phase: "review"
+    description: "盘后复盘与明日关注池"
+
+signal_eval:
+  eval_windows: [1, 3, 5]
+  max_drawdown_window: 5
+
+stage:
+  enabled: true
+  weights:
+    dow: 0.45
+    chip: 0.0
+    wave: 0.0
+    pattern: 0.30
+    volume_price: 0.25
+  stage_thresholds:
+    decline_max: 25
+    accumulation_max: 40
+    start_max: 60
+
+radar:
+  mainline_radar:
+    enabled: true
+    scan_range: [6, 20]
+    min_radar_score: 50
+    signal_weights:
+      limit_up_cluster: 0.35
+      volume_surge: 0.25
+      leader_move: 0.25
+      sustained: 0.15
+    stage_multiplier:
+      stage_0: 1.0
+      stage_1: 1.0
+      stage_2: 0.8
+      stage_3: 0.3
+      stage_4: 0.3
+  leader_radar:
+    enabled: true
+    factor_weights:
+      history: 0.30
+      purity: 0.20
+      capacity: 0.20
+      turnover: 0.15
+      stage: 0.15
+  risk_radar:
+    enabled: false
+    leader_decay:
+      volume_decay_ratio: 0.8
+      stagnation_volume_ratio: 1.5
+      stagnation_max_pct: 1.0
+      upper_shadow_threshold: 0.3
+    sector_decay:
+      limit_up_decrease_days: 2
+      breadth_warning: 0.4
+      amount_shrink_ratio: 0.7

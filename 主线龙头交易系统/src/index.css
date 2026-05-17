@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-bg-dark: #0a0a0f;
+  --color-bg-surface: #12121a;
+  --color-accent-blue: #3b82f6;
+  --color-accent-orange: #f59e0b;
+  --color-accent-green: #10b981;
+  --color-accent-red: #ef4444;
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
+}
+
+@layer base {
+  body {
+    @apply bg-bg-dark text-slate-100 font-sans antialiased selection:bg-accent-blue/30;
+  }
+}
+
+.hud-grid {
+  background-image: linear-gradient(var(--color-border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border-subtle) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.glass-panel {
+  @apply bg-bg-surface border border-border-subtle backdrop-blur-sm;
+}
+
+.data-value {
+  @apply font-mono;
+}

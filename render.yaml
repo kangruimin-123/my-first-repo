@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: stock-trading-system-3
+    env: docker
+    plan: starter
+    autoDeploy: false
+    envVars:
+      - key: TS_TOKEN
+        sync: false
+      - key: PORT
+        value: 8000

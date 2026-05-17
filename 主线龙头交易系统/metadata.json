@@ -1,0 +1,6 @@
+{
+  "name": "主线龙头交易系统",
+  "description": "专业 A 股主线龙头交易辅助仪表盘 - 作战指挥室风格",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

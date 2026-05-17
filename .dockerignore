@@ -1,0 +1,11 @@
+.git
+__pycache__
+.pytest_cache
+.DS_Store
+*.pyc
+主线龙头交易系统/node_modules
+主线龙头交易系统/dist
+主线龙头交易系统/.vite
+backups
+files.zip
+主线龙头交易系统.zip
