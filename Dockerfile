@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend ./backend
 COPY sample_data ./sample_data
 COPY output ./output
-COPY config.yaml run.py trading_system.db ./
+COPY config.yaml run.py ./
 COPY --from=frontend /app/frontend/dist ./主线龙头交易系统/dist
 
 EXPOSE 8000
