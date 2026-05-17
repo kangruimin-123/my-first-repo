@@ -35,6 +35,8 @@ http://127.0.0.1:8000/
 
 项目已准备 Docker 和 Render 配置：
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/kangruimin-123/my-first-repo)
+
 - `Dockerfile`
 - `render.yaml`
 - `DEPLOY.md`
