@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import base64
 import json
+import logging
 import os
 import secrets
 from functools import lru_cache
@@ -35,6 +36,9 @@ from backend.db import (
     get_session,
     init_db,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class PositionCreate(BaseModel):
@@ -176,7 +180,9 @@ def _install_basic_auth(app: FastAPI) -> None:
     username = os.getenv("APP_USERNAME", "").strip()
     password = os.getenv("APP_PASSWORD", "")
     if not username or not password:
+        logger.warning("Basic auth disabled: APP_USERNAME or APP_PASSWORD is not configured")
         return
+    logger.info("Basic auth enabled")
 
     @app.middleware("http")
     async def basic_auth(request: Request, call_next: Any) -> Response:
