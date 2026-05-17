@@ -1,9 +1,34 @@
-.DS_Store
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.netlify/
+主线龙头交易系统/dist/
+
+# Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.venv/
+venv/
+
+# Local env and databases
+.env
+*.db
+*.sqlite
+*.sqlite3
 trading_system.db
 backups/*.db
 output/*
 !output/.gitkeep
 !backups/.gitkeep
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
