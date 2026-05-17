@@ -42,3 +42,30 @@ def test_basic_auth_protects_app_when_configured(monkeypatch, mock_config, tmp_p
 
     allowed = client.get("/api/status", headers={"Authorization": _basic_auth("me", "secret")})
     assert allowed.status_code == 200
+
+
+def test_initial_positions_json_bootstraps_positions(monkeypatch, mock_config, tmp_path) -> None:
+    monkeypatch.delenv("APP_USERNAME", raising=False)
+    monkeypatch.delenv("APP_PASSWORD", raising=False)
+    monkeypatch.setenv(
+        "INITIAL_POSITIONS_JSON",
+        """[
+          {
+            "symbol": "688820.SH",
+            "name": "盛合晶微",
+            "entry_price": 163.955,
+            "entry_date": "2026-05-17",
+            "quantity": 200,
+            "notes": "secret bootstrap"
+          }
+        ]""",
+    )
+    client = TestClient(create_app(_api_config(mock_config, tmp_path)))
+
+    response = client.get("/api/positions")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["symbol"] == "688820.SH"
+    assert payload[0]["name"] == "盛合晶微"

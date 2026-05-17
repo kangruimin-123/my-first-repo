@@ -58,6 +58,7 @@ def _frontend_dist_path() -> Path:
 def create_app(config: dict[str, Any] | None = None) -> FastAPI:
     app_config = config or load_config()
     init_db(db_path=str(app_config["system"]["db_path"]))
+    _bootstrap_positions_from_env()
     app = FastAPI(title="主线龙头交易系统 API", version=str(app_config["system"].get("version", "0.1.0")))
     app.add_middleware(
         CORSMiddleware,
@@ -219,6 +220,64 @@ def _valid_basic_auth(auth_header: str, username: str, password: str) -> bool:
     if not separator:
         return False
     return secrets.compare_digest(provided_username, username) and secrets.compare_digest(provided_password, password)
+
+
+def _bootstrap_positions_from_env() -> None:
+    raw_positions = os.getenv("INITIAL_POSITIONS_JSON", "").strip()
+    if not raw_positions:
+        return
+    try:
+        positions = json.loads(raw_positions)
+    except json.JSONDecodeError as exc:
+        logger.warning("INITIAL_POSITIONS_JSON is invalid JSON: %s", exc)
+        return
+    if not isinstance(positions, list):
+        logger.warning("INITIAL_POSITIONS_JSON must be a JSON array")
+        return
+
+    imported = 0
+    with get_session() as session:
+        for item in positions:
+            if not isinstance(item, dict):
+                continue
+            try:
+                symbol = _normalize_symbol(str(item["symbol"]))
+                entry_date = date.fromisoformat(str(item["entry_date"]))
+                entry_price = float(item["entry_price"])
+                quantity = int(item["quantity"])
+            except (KeyError, TypeError, ValueError) as exc:
+                logger.warning("Skip invalid initial position: %s", exc)
+                continue
+            row = (
+                session.query(ManualPosition)
+                .filter(ManualPosition.symbol == symbol, ManualPosition.entry_date == entry_date)
+                .one_or_none()
+            )
+            stop_loss = item.get("stop_loss")
+            stop_loss_value = float(stop_loss) if stop_loss not in (None, "") else None
+            name = str(item.get("name") or _stock_name(symbol) or symbol)
+            notes = item.get("notes")
+            if row is None:
+                session.add(
+                    ManualPosition(
+                        symbol=symbol,
+                        name=name,
+                        entry_price=entry_price,
+                        entry_date=entry_date,
+                        quantity=quantity,
+                        stop_loss=stop_loss_value,
+                        notes=str(notes) if notes is not None else None,
+                    )
+                )
+            else:
+                row.name = name
+                row.entry_price = entry_price
+                row.quantity = quantity
+                row.stop_loss = stop_loss_value
+                row.notes = str(notes) if notes is not None else None
+            imported += 1
+    if imported:
+        logger.info("Bootstrapped %s positions from INITIAL_POSITIONS_JSON", imported)
 
 
 app = create_app()
