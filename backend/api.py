@@ -412,13 +412,18 @@ def _start_manual_daily_update(config: dict[str, Any]) -> dict[str, Any]:
     def run_daily() -> None:
         print("MANUAL_DAILY_UPDATE started", flush=True)
         try:
-            result = DailyRunner(config).run()
+            result = DailyRunner(config, force_sync=True).run()
             finished_at = datetime.now(UTC).isoformat()
+            latest_date = _latest_trading_date()
             detail = (
                 f"focus={len(result.focus_pool)}; "
                 f"observation={len(result.observation_pool)}; "
                 f"radar={len(result.radar_results)}; "
                 f"risk={len(result.risk_warnings)}; "
+                f"latest_trade_date={latest_date.isoformat() if latest_date else '-'}; "
+                f"sync_success={result.sync_result.success_count}; "
+                f"sync_fail={result.sync_result.fail_count}; "
+                f"degradation={result.sync_result.degradation_count}; "
                 f"skipped={result.sync_result.skipped}"
             )
             with _daily_update_lock:

@@ -60,9 +60,11 @@ class DataSync:
         config: dict[str, Any] | None = None,
         providers: dict[str, DataProvider] | None = None,
         session_factory: SessionContextFactory | None = None,
+        force: bool = False,
     ) -> None:
         self.config = config or load_config()
         self.session_factory = session_factory or get_session
+        self.force = force
         self.degradation_manager = DegradationManager(session_factory=self.session_factory)
         self.cache_manager = CacheManager(session_factory=self.session_factory)
         self.stock_pool_filter = StockPoolFilter(self.config)
@@ -195,7 +197,7 @@ class DataSync:
         logger.info("data_sync.sync_all started")
         today = self._today_iso()
         last_update = self._get_meta("last_daily_update")
-        if last_update == today:
+        if last_update == today and not self.force:
             logger.info("data already synced for today; skipped")
             return SyncResult(0, 0, 0, skipped=True)
 

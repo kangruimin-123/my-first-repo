@@ -58,8 +58,14 @@ class DailyRunResult:
 
 
 class DailyRunner:
-    def __init__(self, config: dict[str, Any] | None = None, session_factory: SessionContextFactory | None = None) -> None:
+    def __init__(
+        self,
+        config: dict[str, Any] | None = None,
+        session_factory: SessionContextFactory | None = None,
+        force_sync: bool = False,
+    ) -> None:
         self.config = config or load_config()
+        self.force_sync = force_sync
         if session_factory is None:
             engine = init_db(db_path=str(self.config["system"]["db_path"]))
             self.session_factory = lambda: get_session(engine)
@@ -70,7 +76,7 @@ class DailyRunner:
     def run(self) -> DailyRunResult:
         """Run daily Phase 2-3 pipeline and write terminal/CSV/HTML outputs."""
         logger.info("daily_runner.run started")
-        sync_result = DataSync(self.config, session_factory=self.session_factory).sync_all()
+        sync_result = DataSync(self.config, session_factory=self.session_factory, force=self.force_sync).sync_all()
         context = StrategyContext(config=self.config)
         MainlineStrategy(self.config, session_factory=self.session_factory).execute(context)
         MainlineSwitchStrategy(self.config).execute(context)
