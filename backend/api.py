@@ -44,6 +44,7 @@ from backend.db import (
     table_counts,
 )
 from backend.engine.daily_runner import DailyRunner
+from backend.engine.trade_day_runner import TradeDayRunner, TradePhase
 
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,10 @@ def create_app(config: dict[str, Any] | None = None) -> FastAPI:
     @app.post("/api/admin/run-daily")
     def run_daily_update() -> dict[str, Any]:
         return _start_manual_daily_update(app_config)
+
+    @app.post("/api/admin/run-trade-day/{phase}")
+    def run_trade_day_phase(phase: TradePhase) -> dict[str, Any]:
+        return _run_trade_day_phase(app_config, phase)
 
     @app.get("/api/evaluation")
     def evaluation() -> dict[str, Any]:
@@ -464,6 +469,18 @@ def _start_manual_daily_update(config: dict[str, Any]) -> dict[str, Any]:
     payload = _daily_update_payload()
     payload["started"] = True
     return payload
+
+
+def _run_trade_day_phase(config: dict[str, Any], phase: TradePhase) -> dict[str, Any]:
+    daily_factory = (lambda: DailyRunner(config, force_sync=True)) if phase == "review" else None
+    result = TradeDayRunner(config, daily_factory=daily_factory).run_phase(phase)
+    return {
+        "phase": result.phase,
+        "skipped": result.skipped,
+        "message": result.message,
+        "detail": result.detail,
+        "updated_at": datetime.now(UTC).isoformat(),
+    }
 
 
 app = create_app()

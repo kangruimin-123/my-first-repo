@@ -6,10 +6,11 @@ import {
   Clock3,
   Eye,
   Radar,
+  RefreshCcw,
   ShieldAlert,
   Target,
 } from 'lucide-react';
-import { api } from '../api/client';
+import { api, TradeDayRunStatus } from '../api/client';
 import { MOCK_EVALUATION, MOCK_POSITIONS, MOCK_RADAR } from '../mock/data';
 import { EvaluationData, LianbanCandidate, Position, RadarData, StrategySignalCandidate, StockFocus } from '../types';
 import { actionLabel, cn, cnStockChange, formatPct, formatPrice, readableActionText, stageLabel, strategyLabel } from '../lib/utils';
@@ -48,8 +49,11 @@ export default function TodayDeskView() {
   const [positions, setPositions] = React.useState<Position[]>(MOCK_POSITIONS);
   const [status, setStatus] = React.useState<DeskStatus | null>(null);
   const [isLive, setIsLive] = React.useState(false);
+  const [runningPhase, setRunningPhase] = React.useState('');
+  const [phaseResult, setPhaseResult] = React.useState<TradeDayRunStatus | null>(null);
+  const [phaseError, setPhaseError] = React.useState('');
 
-  React.useEffect(() => {
+  const loadDeskData = React.useCallback(() => {
     Promise.allSettled([api.evaluation(), api.radar(), api.positions(), api.status()]).then((results) => {
       const [evaluationResult, radarResult, positionsResult, statusResult] = results;
       if (evaluationResult.status === 'fulfilled') {
@@ -61,6 +65,24 @@ export default function TodayDeskView() {
       if (statusResult.status === 'fulfilled') setStatus(statusResult.value);
     });
   }, []);
+
+  React.useEffect(() => {
+    loadDeskData();
+  }, [loadDeskData]);
+
+  const runTradePhase = React.useCallback(async (phase: 'opening' | 'intraday' | 'review') => {
+    setRunningPhase(phase);
+    setPhaseError('');
+    try {
+      const result = await api.runTradeDayPhase(phase);
+      setPhaseResult(result);
+      loadDeskData();
+    } catch (error) {
+      setPhaseError(error instanceof Error ? error.message : '任务启动失败');
+    } finally {
+      setRunningPhase('');
+    }
+  }, [loadDeskData]);
 
   const rawBuyList = buildBuyList(evaluation);
   const rawObserveList = buildObserveList(evaluation);
@@ -113,6 +135,11 @@ export default function TodayDeskView() {
             <Clock3 className="w-5 h-5 text-accent-blue" />
             <h4 className="font-bold text-slate-100">交易日状态</h4>
           </div>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <PhaseButton label="盘前" subLabel="竞价" phase="opening" runningPhase={runningPhase} onRun={runTradePhase} />
+            <PhaseButton label="盘中" subLabel="监控" phase="intraday" runningPhase={runningPhase} onRun={runTradePhase} />
+            <PhaseButton label="盘后" subLabel="复盘" phase="review" runningPhase={runningPhase} onRun={runTradePhase} />
+          </div>
           <div className="space-y-3 text-sm">
             <StatusLine label="交易日" value={status?.latest_trade_date || evaluation.date || '-'} />
             <StatusLine label="最近任务" value={phaseLabel(status?.trade_day?.last_phase || '')} />
@@ -121,6 +148,12 @@ export default function TodayDeskView() {
           <div className="mt-4 rounded-lg bg-white/[0.03] border border-border-subtle px-4 py-3 text-xs text-slate-400 leading-relaxed">
             {status?.trade_day?.last_message || '暂无调度状态'}
           </div>
+          {(phaseResult?.detail || status?.trade_day?.last_detail) && (
+            <div className="mt-3 rounded-lg bg-accent-blue/5 border border-accent-blue/10 px-4 py-3 text-[11px] text-slate-400 leading-relaxed">
+              {phaseResult?.detail || status?.trade_day?.last_detail}
+            </div>
+          )}
+          {phaseError && <div className="mt-3 text-xs text-accent-red">{phaseError}</div>}
         </div>
       </section>
 
@@ -388,6 +421,38 @@ function BlockedCard({ item }: { item: DeskCandidate; key?: React.Key }) {
       <div className="mt-2 text-xs text-slate-500">{strategyLabel(item.strategy)}</div>
       <div className="mt-2 text-xs text-slate-400 line-clamp-2">{readableActionText(item.actionText)}</div>
     </div>
+  );
+}
+
+function PhaseButton({
+  label,
+  subLabel,
+  phase,
+  runningPhase,
+  onRun,
+}: {
+  label: string;
+  subLabel: string;
+  phase: 'opening' | 'intraday' | 'review';
+  runningPhase: string;
+  onRun: (phase: 'opening' | 'intraday' | 'review') => void;
+}) {
+  const isRunning = runningPhase === phase;
+  return (
+    <button
+      className={cn(
+        'rounded-lg border border-border-subtle bg-white/[0.03] px-3 py-2 text-left transition-all hover:border-accent-blue/40 hover:bg-accent-blue/10',
+        runningPhase && !isRunning && 'opacity-50',
+      )}
+      disabled={Boolean(runningPhase)}
+      onClick={() => onRun(phase)}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-black text-slate-100">{label}</span>
+        <RefreshCcw className={cn('w-3.5 h-3.5 text-accent-blue', isRunning && 'animate-spin')} />
+      </div>
+      <div className="mt-0.5 text-[10px] text-slate-500">{isRunning ? '运行中' : subLabel}</div>
+    </button>
   );
 }
 

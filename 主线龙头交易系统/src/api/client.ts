@@ -47,6 +47,14 @@ export interface ManualUpdateStatus {
   started?: boolean;
 }
 
+export interface TradeDayRunStatus {
+  phase: string;
+  skipped: boolean;
+  message: string;
+  detail: string;
+  updated_at: string;
+}
+
 export const api = {
   evaluation: () => request<EvaluationData>('/api/evaluation'),
   radar: () => request<RadarData>('/api/radar'),
@@ -56,6 +64,7 @@ export const api = {
   backtest: () => request<BacktestData>('/api/backtest'),
   updateStatus: () => request<ManualUpdateStatus>('/api/admin/update-status'),
   runDailyUpdate: () => postEmpty<ManualUpdateStatus>('/api/admin/run-daily'),
+  runTradeDayPhase: (phase: 'opening' | 'intraday' | 'review') => postEmpty<TradeDayRunStatus>(`/api/admin/run-trade-day/${phase}`),
   status: () => request<{
     status: string;
     latest_trade_date: string;
