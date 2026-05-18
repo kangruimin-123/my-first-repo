@@ -411,16 +411,24 @@ def _start_manual_daily_update(config: dict[str, Any]) -> dict[str, Any]:
 
     def run_daily() -> None:
         print("MANUAL_DAILY_UPDATE started", flush=True)
+        latest_before = _latest_trading_date()
         try:
             result = DailyRunner(config, force_sync=True).run()
             finished_at = datetime.now(UTC).isoformat()
-            latest_date = _latest_trading_date()
+            latest_after = _latest_trading_date()
+            latest_before_text = latest_before.isoformat() if latest_before else "-"
+            latest_after_text = latest_after.isoformat() if latest_after else "-"
+            if latest_after_text == latest_before_text:
+                message = "手动更新完成，最新交易日未变化"
+            else:
+                message = "手动更新完成，已获取新交易日"
             detail = (
                 f"focus={len(result.focus_pool)}; "
                 f"observation={len(result.observation_pool)}; "
                 f"radar={len(result.radar_results)}; "
                 f"risk={len(result.risk_warnings)}; "
-                f"latest_trade_date={latest_date.isoformat() if latest_date else '-'}; "
+                f"latest_before={latest_before_text}; "
+                f"latest_after={latest_after_text}; "
                 f"sync_success={result.sync_result.success_count}; "
                 f"sync_fail={result.sync_result.fail_count}; "
                 f"degradation={result.sync_result.degradation_count}; "
@@ -431,7 +439,7 @@ def _start_manual_daily_update(config: dict[str, Any]) -> dict[str, Any]:
                     {
                         "running": False,
                         "finished_at": finished_at,
-                        "message": "手动更新完成",
+                        "message": message,
                         "detail": detail,
                         "success": True,
                     }
