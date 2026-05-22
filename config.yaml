@@ -9,7 +9,7 @@ system:
 
 data_source:
   daily:
-    chain: ["tushare", "akshare", "cache"]
+    chain: ["akshare", "tushare", "cache"]
   auction:
     chain: ["efinance", "tushare", "mock"]
   intraday:
