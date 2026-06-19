@@ -1,0 +1,61 @@
+{
+  "workflowName": "AI工具申请审批流程V1",
+  "defaults": {
+    "feeType": "AI费用",
+    "currency": "CNY",
+    "costDepartment": "applicant.department",
+    "apiKeyOwner": "applicant",
+    "apiKeyCostOwner": "applicant"
+  },
+  "resourceTypes": [
+    "API Key / 接口额度",
+    "订阅账号 / 席位",
+    "共享账号 / 公共资源",
+    "其他 AI 工具资源"
+  ],
+  "applicationItems": [
+    "新增",
+    "续费 / 续期",
+    "增额 / 增购",
+    "变更",
+    "停用 / 回收",
+    "其他"
+  ],
+  "toolCategories": [
+    "通用大模型",
+    "代码辅助",
+    "图像生成",
+    "音频生成",
+    "视频生成",
+    "数据分析",
+    "办公效率",
+    "自动化流程",
+    "其他"
+  ],
+  "scenarioCategories": [
+    "代码辅助",
+    "图像生成",
+    "音频生成",
+    "视频生成",
+    "文本写作",
+    "数据分析",
+    "办公效率",
+    "翻译润色",
+    "客服 / 知识库",
+    "自动化流程",
+    "学习研究",
+    "其他"
+  ],
+  "rules": {
+    "subscriptionToolSelection": "single",
+    "apiKeyToolSelection": "multiple",
+    "subscriptionSameCategoryLimit": true,
+    "sharedAccountUserConflictCheck": true,
+    "removeCostDepartmentInput": true,
+    "removeApiKeyBackendUsageText": true,
+    "removeApiKeyOwnerInput": true,
+    "removeApiKeyCostOwnerInput": true,
+    "currencyFixedToCNY": true,
+    "feeTypeFixedToAIExpense": true
+  }
+}
